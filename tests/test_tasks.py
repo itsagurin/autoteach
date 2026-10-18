@@ -41,7 +41,44 @@ def test_replay_buffer_proportions():
     assert 15 <= replay_count <= 25, "The proportion of archival data is off (expected ~20%)"
 
 
+def test_task_tokenization_all_levels():
+    from src.models.tokenizer import MathTokenizer
+    tokenizer = MathTokenizer()
+
+    for level in range(1, 5):
+        task = get_task_for_level(level)
+        train_data, val_data = task.get_data()
+        for prompt, answer in train_data[:50]:
+            p_toks = tokenizer.encode(prompt)
+            a_toks = tokenizer.encode(answer)
+            assert len(p_toks) > 0 and len(a_toks) > 0
+            assert tokenizer.decode(p_toks) == prompt
+            assert tokenizer.decode(a_toks) == answer
+    print("[OK] All 4 levels successfully tokenized and decoded without errors (including scratchpad brackets)")
+
+
+def test_retention_evaluation():
+    import torch
+    from src.models.nanogpt import MicroNanoGPT
+    from src.models.tokenizer import MathTokenizer
+
+    tokenizer = MathTokenizer()
+    model = MicroNanoGPT(vocab_size=tokenizer.vocab_size, d_model=64, n_layer=1, n_head=2, block_size=64)
+    buffer = ExperienceReplayBuffer(replay_ratio=0.2, seed=42)
+
+    task1 = get_task_for_level(1)
+    train1, val1 = task1.get_data()
+    buffer.archive_task(level=1, train_data=train1, val_data=val1)
+
+    scores = buffer.evaluate_retention(model, tokenizer, torch.device("cpu"), max_samples=50)
+    assert 1 in scores
+    assert isinstance(scores[1], float)
+    print(f"[OK] Replay buffer retention evaluation passed: {scores}")
+
+
 if __name__ == "__main__":
     test_task_data_integrity()
     test_replay_buffer_proportions()
+    test_task_tokenization_all_levels()
+    test_retention_evaluation()
     print("\nAll tests are passed")

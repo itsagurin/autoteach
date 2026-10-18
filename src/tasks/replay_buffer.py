@@ -1,5 +1,8 @@
 import random
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
+import torch
+from src.engine.masking import prepare_batch
+from src.telemetry.metrics import compute_exact_match
 
 
 class ExperienceReplayBuffer:
@@ -8,9 +11,17 @@ class ExperienceReplayBuffer:
         self.replay_ratio = replay_ratio
         self.rng = random.Random(seed)
         self.task_archive: Dict[int, List[Tuple[str, str]]] = {}
+        self.val_archive: Dict[int, List[Tuple[str, str]]] = {}
 
-    def archive_task(self, level: int, train_data: List[Tuple[str, str]]):
+    def archive_task(
+            self,
+            level: int,
+            train_data: List[Tuple[str, str]],
+            val_data: Optional[List[Tuple[str, str]]] = None
+    ):
         self.task_archive[level] = list(train_data)
+        if val_data is not None:
+            self.val_archive[level] = list(val_data)
 
     def mix_dataset(
             self,
@@ -40,3 +51,33 @@ class ExperienceReplayBuffer:
         combined = current_sample + replay_samples
         self.rng.shuffle(combined)
         return combined
+
+    def evaluate_retention(
+            self,
+            model: torch.nn.Module,
+            tokenizer,
+            device: torch.device,
+            max_samples: int = 200
+    ) -> Dict[int, float]:
+        """
+        Evaluates Exact Match on archived validation sets from previously mastered levels.
+        Guarantees early detection of catastrophic forgetting.
+        """
+        if not self.val_archive:
+            return {}
+
+        retention_scores: Dict[int, float] = {}
+        model.eval()
+
+        with torch.no_grad():
+            for level, val_data in self.val_archive.items():
+                if not val_data:
+                    continue
+                k = min(max_samples, len(val_data))
+                sub_val = self.rng.sample(val_data, k)
+                x_val, y_val = prepare_batch(sub_val, tokenizer, device)
+                logits, _ = model(x_val, targets=y_val)
+                em = compute_exact_match(logits, y_val)
+                retention_scores[level] = round(em, 4)
+
+        return retention_scores

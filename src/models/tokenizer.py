@@ -1,6 +1,6 @@
 class MathTokenizer:
     def __init__(self):
-        chars = sorted(list("0123456789+-*=% "))
+        chars = sorted(list("0123456789+-*=%[] "))
         self.pad_token = "<pad>"
         self.eos_token = "<eos>"
 

@@ -87,3 +87,20 @@ class MicroNanoGPT(nn.Module):
             )
 
         return logits, loss
+
+    def load_state_dict_flexible(self, state_dict: dict):
+        """
+        Loads state dict allowing for vocabulary expansion (e.g. when tokens like '[' and ']' are added).
+        """
+        if "transformer.wte.weight" in state_dict:
+            old_wte = state_dict["transformer.wte.weight"]
+            old_v = old_wte.shape[0]
+            curr_v = self.transformer.wte.weight.shape[0]
+            if old_v != curr_v:
+                with torch.no_grad():
+                    n = min(old_v, curr_v)
+                    self.transformer.wte.weight[:n] = old_wte[:n]
+                    if "lm_head.weight" in state_dict:
+                        self.lm_head.weight[:n] = state_dict["lm_head.weight"][:n]
+                state_dict = {k: v for k, v in state_dict.items() if k not in ["transformer.wte.weight", "lm_head.weight"]}
+        return self.load_state_dict(state_dict, strict=False)

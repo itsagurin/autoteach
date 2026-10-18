@@ -1,0 +1,12 @@
+optimizer:
+  type: "AdamW"
+  lr: 0.001
+  betas: [0.9, 0.98]
+  weight_decay: 1.0
+  eps: 1e-8
+
+equilibrium_handling:
+  auto_escape: true
+  min_fitting_threshold: 0.85
+  recovery_action: "reduce_regularization"
+  cooldown_eval_intervals: 10
