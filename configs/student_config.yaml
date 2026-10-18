@@ -1,0 +1,13 @@
+model:
+  d_model: 128
+  n_layer: 2
+  n_head: 4
+  block_size: 64
+
+training:
+  batch_size: 512
+  lr: 0.001
+  weight_decay: 1.0
+  betas: [0.9, 0.98]
+  max_steps: 40000
+  eval_interval: 200

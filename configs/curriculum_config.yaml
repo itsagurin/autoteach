@@ -1,0 +1,16 @@
+curriculum:
+  train_memorized_threshold: 0.98
+  val_transition_threshold: 0.15
+  val_generalized_threshold: 0.98
+
+  patience: 5
+
+  plateau:
+    stagnation_window: 10
+    min_norm_drop_rate: 0.05
+    max_steps_in_plateau: 20000
+
+  interventions:
+    weight_decay_multiplier: 1.25
+    max_weight_decay: 5.0
+    lr_decay_on_stagnation: 0.8
